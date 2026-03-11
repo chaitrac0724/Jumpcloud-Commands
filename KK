@@ -1,0 +1,17 @@
+Write-Host "🧹 Removing all WhatsApp packages..."
+
+# Remove installed packages
+Get-AppxPackage -AllUsers *WhatsApp* | ForEach-Object {
+    Write-Host "Removing installed package: $($_.PackageFullName)"
+    Remove-AppxPackage -Package $_.PackageFullName -AllUsers -ErrorAction SilentlyContinue
+}
+
+# Remove provisioned packages
+Get-AppxProvisionedPackage -Online | Where-Object {
+    $_.DisplayName -like "*WhatsApp*"
+} | ForEach-Object {
+    Write-Host "Removing provisioned package: $($_.DisplayName)"
+    Remove-AppxProvisionedPackage -Online -PackageName $_.PackageName
+}
+
+Write-Host "✅ All WhatsApp packages removed."
