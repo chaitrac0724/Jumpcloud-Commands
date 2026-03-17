@@ -1,0 +1,1 @@
+Get-JCPolicyResult 'BitLocker Full Disk Encryption 2' | Export-Csv Bitlocker_Status_logs.csv
