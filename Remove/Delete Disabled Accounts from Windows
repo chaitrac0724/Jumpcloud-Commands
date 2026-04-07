@@ -1,0 +1,34 @@
+# Users to exclude (IMPORTANT)
+$ExcludeUsers = @("Administrator", "DefaultAccount", "Guest", "WDAGUtilityAccount", "Username")
+
+Write-Host "Fetching disabled local user accounts..."
+
+# Get all disabled local users
+$disabledUsers = Get-LocalUser | Where-Object { $_.Enabled -eq $false }
+
+foreach ($user in $disabledUsers) {
+
+    if ($ExcludeUsers -contains $user.Name) {
+        Write-Host "Skipping excluded user: $($user.Name)"
+        continue
+    }
+
+    Write-Host "Deleting disabled user: $($user.Name)"
+
+    try {
+        # Remove user
+        Remove-LocalUser -Name $user.Name -ErrorAction Stop
+
+        # Remove user profile folder (if exists)
+        $profilePath = "C:\Users\$($user.Name)"
+        if (Test-Path $profilePath) {
+            Remove-Item -Path $profilePath -Recurse -Force
+            Write-Host "Deleted profile folder: $profilePath"
+        }
+
+    } catch {
+        Write-Host "Failed to delete user: $($user.Name) - $_"
+    }
+}
+
+Write-Host "Cleanup completed."
