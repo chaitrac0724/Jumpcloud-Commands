@@ -1,0 +1,41 @@
+#!/bin/bash
+
+EXCLUDE_USERS=("_jumpcloudserviceaccount" "Username" "your_admin_username")
+DRY_RUN=false
+
+echo "Starting deletion..."
+
+dscl . -list /Users UniqueID | awk '$2 >= 500 {print $1}' | while read -r usr; do
+
+    # Check disabled
+    if dscl . -read /Users/"$usr" AuthenticationAuthority 2>/dev/null | grep -q "DisabledUser"; then
+
+        # Exclude check
+        if [[ " ${EXCLUDE_USERS[@]} " =~ " ${usr} " ]]; then
+            echo "Skipping excluded user: $usr"
+            continue
+        fi
+
+        if [ "$DRY_RUN" = true ]; then
+            echo "[DRY RUN] Would delete: $usr"
+        else
+            echo "Deleting user: $usr"
+
+            # Delete user
+            if sudo dscl . -delete /Users/"$usr"; then
+                echo "User deleted: $usr"
+            else
+                echo "❌ Failed to delete user: $usr"
+                continue
+            fi
+
+            # Delete home folder
+            if [ -d "/Users/$usr" ]; then
+                sudo rm -rf "/Users/$usr" && echo "Home deleted: /Users/$usr" || echo "❌ Failed to delete home for $usr"
+            fi
+        fi
+    fi
+
+done
+
+echo "Done."
