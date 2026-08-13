@@ -1,0 +1,19 @@
+https://jumpcloud.com/support/agent-networking-and-port-requirements
+
+https://jumpcloud.com/support/create-an-allow-list-for-jumpcloud-services
+
+
+
+
+a1hrq03pdcca60-ats.iot.us-east-1.amazonaws.com:443
+agent.jumpcloud.com:443
+assist.jumpcloud.com:443 - used by Remote Assist Agent
+cdn02.jumpcloud.com:443
+cdn03.jumpcloud.com:443
+chocolatey.org:443 (https://chocolatey.org/api/v2/)
+console.jumpcloud.com:443
+kickstart.jumpcloud.com:443
+cdn.pwm.jumpcloud.com
+devices.pwm.jumpcloud.com
+s3.amazonaws.com:443
+thirdparty.jumpcloud.com:443
