@@ -1,0 +1,11 @@
+# The script will uninstall all applications with "Adobe" in their names
+
+# Get a list of all installed applications
+$installedApps = Get-WmiObject -Class Win32_Product | Where-Object { $_.Name -like '*Adobe*' }
+
+# Loop through each installed application and uninstall it
+foreach ($app in $installedApps) {
+    Write-Host "Uninstalling $($app.Name)..."
+    $app.Uninstall()
+    Write-Host "Uninstalled $($app.Name)"
+}
