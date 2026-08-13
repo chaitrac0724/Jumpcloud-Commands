@@ -1,0 +1,7 @@
+Get-JCSystem | ? fde -Like "*keyPresent=True; active=True*" | Select-object hostname, _id, @{Name='key';Expression={Get-JCSystem -SystemID $_._id -SystemFDEKey | Select-object -expandProperty key}}
+
+
+
+
+
+Get-JCSystem | ? fde -Like "*keyPresent=True; active=True*" | Select-object hostname, _id, @{Name='key';Expression={Get-JCSystem -SystemID $_._id -SystemFDEKey | Select-object -expandProperty key}} | Export-CSV JCSystemFDEKeys.CSV
