@@ -1,0 +1,16 @@
+# Set the output CSV file path
+$csvPath = "C:\Temp\duplicate_systems.csv"
+
+# Set the threshold date (7 days old)
+$threshold = (Get-Date).AddDays(-7)
+
+# Get duplicate systems and export to CSV
+Get-JCSystem |
+    Group-Object serialNumber |
+    Where-Object { $_.Count -gt 1 } |
+    ForEach-Object { $_.Group } |
+    Where-Object { $_.lastContact -lt $threshold } |
+    Select-Object displayName, serialNumber, id, lastContact |
+    Export-Csv -Path $csvPath -NoTypeInformation
+
+Write-Host "CSV Exported Successfully: $csvPath"
