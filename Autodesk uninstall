@@ -1,0 +1,77 @@
+# ================================
+# AUTODESK FULL CLEANUP SCRIPT
+# ================================
+
+Write-Output "Starting Autodesk full removal..."
+
+# -------------------------------
+# 1. Uninstall Autodesk Products
+# -------------------------------
+$autodeskApps = Get-WmiObject Win32_Product | Where-Object {
+    $_.Name -match "Autodesk"
+}
+
+foreach ($app in $autodeskApps) {
+    Write-Output "Uninstalling: $($app.Name)"
+    $app.Uninstall() | Out-Null
+}
+
+# ---------------------------------
+# 2. Stop & Remove Autodesk Services
+# ---------------------------------
+Get-Service | Where-Object {$_.Name -match "Autodesk"} | ForEach-Object {
+    if ($_.Status -ne "Stopped") {
+        Stop-Service $_.Name -Force
+    }
+    sc.exe delete $_.Name | Out-Null
+}
+
+# -------------------------------
+# 3. Remove Autodesk Folders
+# -------------------------------
+$folders = @(
+    "C:\Program Files\Autodesk",
+    "C:\Program Files (x86)\Autodesk",
+    "C:\ProgramData\Autodesk",
+    "$env:LOCALAPPDATA\Autodesk",
+    "$env:APPDATA\Autodesk",
+    "C:\Autodesk",
+    "C:\Temp\Autodesk"
+)
+
+foreach ($folder in $folders) {
+    if (Test-Path $folder) {
+        Write-Output "Deleting folder: $folder"
+        Remove-Item -Path $folder -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+
+# ---------------------------------
+# 4. Remove Autodesk Registry Keys
+# ---------------------------------
+$regKeys = @(
+    "HKLM:\SOFTWARE\Autodesk",
+    "HKLM:\SOFTWARE\WOW6432Node\Autodesk",
+    "HKCU:\SOFTWARE\Autodesk"
+)
+
+foreach ($key in $regKeys) {
+    if (Test-Path $key) {
+        Write-Output "Deleting registry key: $key"
+        Remove-Item -Path $key -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+
+# ---------------------------------
+# 5. Clear Autodesk Temp Files
+# ---------------------------------
+Get-ChildItem "C:\Users" -Directory | ForEach-Object {
+    $tempPath = "$($_.FullName)\AppData\Local\Temp"
+    if (Test-Path $tempPath) {
+        Get-ChildItem $tempPath -Recurse -Force -ErrorAction SilentlyContinue |
+        Where-Object {$_.Name -match "Autodesk"} |
+        Remove-Item -Force -Recurse -ErrorAction SilentlyContinue
+    }
+}
+
+Write-Output "Autodesk cleanup completed successfully."
