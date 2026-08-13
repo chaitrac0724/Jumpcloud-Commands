@@ -1,0 +1,12 @@
+# The script will uninstall all applications with "Adobe" in their names from the 2 paths /Applications/  and  /Applications/Utilities/
+
+sudo find /Applications -type d -name 'Adobe*' -exec rm -rf {} \;
+
+
+# Adobe path to remove ( you can add more path in below format if you have )
+
+sudo rm -rf "/Library/Application Support/Adobe"
+sudo rm -rf "/Users/Shared/Adobe"
+sudo rm -rf "/Users/Shared/AdobeGCInfo"
+sudo rm -rf "/Library/PDF Services"
+
