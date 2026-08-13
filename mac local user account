@@ -1,0 +1,13 @@
+loggedInUser=$(stat -f %Su /dev/console)
+deviceName=$(scutil --get ComputerName)
+
+# Check if user is a JumpCloud user
+jcUser=$(dscl . -read /Users/$loggedInUser dsAttrTypeNative:jumpcloudUser 2>/dev/null)
+
+if [ -z "$jcUser" ]; then
+  loginType="Local Account Login"
+else
+  loginType="JumpCloud Account Login"
+fi
+
+echo "{ \"DeviceName\": \"$deviceName\", \"LoggedInUser\": \"$loggedInUser\", \"LoginType\": \"$loginType\" }"
