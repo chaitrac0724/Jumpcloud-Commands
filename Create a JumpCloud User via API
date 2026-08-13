@@ -1,0 +1,29 @@
+# Replace with your actual API key
+$apiKey = "YOUR_JUMPCLOUD_API_KEY"
+
+# JSON payload for new user
+$userData = @{
+    email = "john.doe@example.com"
+    username = "john.doe"
+    firstname = "John"
+    lastname = "Doe"
+    password = "P@ssw0rd123"
+} | ConvertTo-Json
+
+# Set headers
+$headers = @{
+    "Content-Type" = "application/json"
+    "x-api-key"    = $apiKey
+}
+
+# Create HTTP client using .NET class
+$httpClient = [System.Net.Http.HttpClient]::new()
+
+# Use Invoke-RestMethod for sending the request (easier in PowerShell)
+$response = Invoke-RestMethod -Uri "https://console.jumpcloud.com/api/systemusers" `
+                              -Method POST `
+                              -Headers $headers `
+                              -Body $userData
+
+# Output result
+$response | Format-List
