@@ -1,0 +1,1 @@
+$du=(Get-JCSystem | Group-Object serialNumber | ?{$.Count -gt 1} | %{$.Group}); $threshold=(Get-Date).AddDays(-7); $du | ?{ $.lastContact -lt $threshold } | % { Remove-JCSystem -SystemID $.id -Force }
