@@ -1,0 +1,17 @@
+# Import CSV
+$devices = Import-Csv "C:\Users\chait\Downloads\allen_primaryusers.csv"
+
+foreach ($device in $devices) {
+    $systemID = $device.SystemID
+    $username = $device.Username
+
+    Write-Host "Setting Primary User $username for System $systemID..."
+
+    try {
+        Set-JCSystem -SystemID $systemID -primarySystemUser $username
+        Write-Host "✔ Successfully updated $systemID" -ForegroundColor Green
+    }
+    catch {
+        Write-Host "✖ Failed to update $systemID : $_" -ForegroundColor Red
+    }
+}
