@@ -1,0 +1,61 @@
+#!/bin/bash
+
+# Define Adobe Reader DMG URL
+DownloadUrl="https://ardownload2.adobe.com/pub/adobe/acrobat/mac/AcrobatDC/2400520414/AcroRdrSCADC2400520414_MUI.dmg"
+
+# Create Temp Folder
+DATE=$(date '+%Y-%m-%d-%H-%M-%S')
+TempFolder="/tmp/Download-$DATE"
+mkdir "$TempFolder"
+
+# Download the DMG file
+echo "Downloading Adobe Reader..."
+curl -s -o "$TempFolder/AdobeReader.dmg" "$DownloadUrl"
+
+# Mount the DMG file
+echo "Mounting DMG..."
+DMGMountPoint=$(hdiutil attach "$TempFolder/AdobeReader.dmg" -nobrowse | grep "/Volumes/" | awk '{print $3}')
+
+if [ -z "$DMGMountPoint" ]; then
+    echo "❌ Error: Failed to mount DMG."
+    rm -rf "$TempFolder"
+    exit 1
+fi
+
+# Check for .pkg file first
+DMGPkgPath=$(find "$DMGMountPoint" -name "*.pkg" -maxdepth 1 -type f)
+
+if [ -n "$DMGPkgPath" ]; then
+    echo "Found .pkg file. Installing..."
+    sudo installer -pkg "$DMGPkgPath" -target / &> /dev/null
+    InstallSuccess=$?
+else
+    # Check for .app file if no .pkg found
+    DMGAppPath=$(find "$DMGMountPoint" -name "*.app" -maxdepth 1 -type d)
+    
+    if [ -n "$DMGAppPath" ]; then
+        echo "Found .app file. Copying to /Applications..."
+        cp -pPR "$DMGAppPath" /Applications/
+        InstallSuccess=$?
+    else
+        echo "❌ Error: No .app or .pkg found in DMG."
+        hdiutil detach "$DMGMountPoint"
+        rm -rf "$TempFolder"
+        exit 1
+    fi
+fi
+
+# Unmount the DMG
+hdiutil detach "$DMGMountPoint" &> /dev/null
+
+# Remove temporary folder
+rm -rf "$TempFolder"
+
+# Verify Installation
+if [ $InstallSuccess -eq 0 ] && [ -d "/Applications/Adobe Acrobat Reader.app" ]; then
+    echo "✅ Adobe Acrobat Reader successfully installed!"
+    exit 0
+else
+    echo "⚠️ Installation completed, but verification failed. Please check manually."
+    exit 1
+fi
