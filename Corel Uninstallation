@@ -1,0 +1,87 @@
+# ================================================
+# UNIVERSAL SILENT UNINSTALL — ALL COREL PRODUCTS
+# SAFE FOR JUMPCLOUD
+# ================================================
+
+Write-Output "Starting universal Corel cleanup..."
+
+# ------------------------------------------------
+# 1. Remove all MSIX / AppX Corel packages
+# ------------------------------------------------
+Get-AppxPackage -AllUsers | Where-Object { $_.Name -like "*Corel*" } | ForEach-Object {
+    Write-Output "Removing Appx/MSIX: $($_.Name)"
+    Remove-AppxPackage -Package $_.PackageFullName -AllUsers -ErrorAction SilentlyContinue
+}
+
+# ------------------------------------------------
+# 2. Uninstall all Corel MSI/EXE products via Registry (SAFE)
+# ------------------------------------------------
+$uninstallRoots = @(
+    "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall",
+    "HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall"
+)
+
+foreach ($root in $uninstallRoots) {
+    Get-ChildItem $root -ErrorAction SilentlyContinue | ForEach-Object {
+        $app = Get-ItemProperty $_.PsPath -ErrorAction SilentlyContinue
+
+        if ($app.DisplayName -like "*Corel*") {
+            Write-Output "Uninstalling: $($app.DisplayName)"
+
+            $cmd = $app.UninstallString
+
+            if ($cmd) {
+                Start-Process "cmd.exe" "/c $cmd /quiet /norestart" `
+                    -WindowStyle Hidden -ErrorAction SilentlyContinue -Wait
+            }
+        }
+    }
+}
+
+# ------------------------------------------------
+# 3. Remove all leftover Corel folders (All Users)
+# ------------------------------------------------
+$paths = @(
+    "C:\Program Files\Corel*",
+    "C:\Program Files (x86)\Corel*",
+    "C:\ProgramData\Corel*",
+    "C:\Users\*\AppData\Local\Corel*",
+    "C:\Users\*\AppData\Roaming\Corel*"
+)
+
+foreach ($path in $paths) {
+    Write-Output "Removing folder(s): $path"
+    Remove-Item -Path $path -Recurse -Force -ErrorAction SilentlyContinue
+}
+
+# ------------------------------------------------
+# 4. Remove Start Menu & Desktop shortcuts
+# ------------------------------------------------
+$shortcutPaths = @(
+    "$env:PROGRAMDATA\Microsoft\Windows\Start Menu\Programs\Corel*",
+    "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Corel*",
+    "$env:PUBLIC\Desktop\Corel*.lnk"
+)
+
+foreach ($sc in $shortcutPaths) {
+    Write-Output "Removing shortcuts: $sc"
+    Remove-Item $sc -Recurse -Force -ErrorAction SilentlyContinue
+}
+
+# ------------------------------------------------
+# 5. Registry cleanup
+# ------------------------------------------------
+$corelReg = @(
+    "HKCU:\Software\Corel",
+    "HKLM:\Software\Corel",
+    "HKLM:\SOFTWARE\WOW6432Node\Corel"
+)
+
+foreach ($reg in $corelReg) {
+    if (Test-Path $reg) {
+        Write-Output "Deleting registry key: $reg"
+        Remove-Item $reg -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+
+Write-Output "Corel universal cleanup complete."
