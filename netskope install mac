@@ -1,0 +1,84 @@
+#!/bin/bash
+#Script for installing Netskope Client on OSX machines
+#function will install Netskope Client
+
+function Ins_NSClient(){
+ag="NSClient.pkg"
+spDomain="de.goskope.com"
+spTenant=""
+perusermode=0 # put 0 for normal installation, put 1 for per user config
+echo "Downloading NsAgent..."
+curl -o /tmp/$ag  https://
+echo "will now add config file..."
+mkdir -p "/Library/Application Support/Netskope/STAgent"
+NSIDPCONFIG_FILE_PATH="/Library/Application Support/Netskope/STAgent/nsidpconfig.json"
+echo "{ \"serviceProvider\": { \"domain\": \"$spDomain\", \"tenant\": \"$spTenant\" } }" > "${NSIDPCONFIG_FILE_PATH}"
+if [ $perusermode -eq 1 ]
+then
+NSUSERCONFIG_JSON_FILE="/Library/Application Support/Netskope/STAgent/nsuserconfig.json"
+echo "{\"nsUserConfig\":{\"enablePerUserConfig\": \"true\", \"configLocation\": \"~/Library/Application Support/Netskope/STAgent\", \"token\": \"\", \"host\": \"\",\"autoupdate\": \"true\"$fail_close_option}}" > "${NSUSERCONFIG_JSON_FILE}"
+fi
+echo "Installing Agent..."
+installer -dumplog -pkg /tmp/$ag -target / && rm /tmp/$ag
+}
+# Function to create JSON file with provided tokens
+Create_Json() {
+    # Create directory if it doesn't exist
+    mkdir -p $TEMP_BRANDING_DIR
+    # Delete previous enroll.conf if it exists
+    if [[ -f "$TEMP_ENROLLMENT_TOKEN_FILE" ]]; then
+        rm "$TEMP_ENROLLMENT_TOKEN_FILE"
+    fi 
+    local a=$1 #auth token
+    local b=$2 #encryption token
+    # Check if parameters are 32 characters hexadecimal
+    if ! [[ "$a" =~ ^[a-fA-F0-9]{32}$ ]] && [[ "$a" != "0" ]]; then
+        echo "Invalid auth token: must be 32 hexadecimal characters"
+        return 1
+    fi
+    if ! [[ "$b" =~ ^[a-fA-F0-9]{32}$ ]] && [[ "$b" != "0" ]]; then
+        echo "Invalid encryption token: must be 32 hexadecimal characters"
+        return 1
+    fi
+    # Start the JSON structure
+    echo "{" > $TEMP_ENROLLMENT_TOKEN_FILE
+    #if both token is present
+    if [[ "$a" != "0" && "$b" != "0" ]]; then
+        echo "\"enrollauthtoken\": \"$a\"," >> $TEMP_ENROLLMENT_TOKEN_FILE
+        echo "\"enrollencryptiontoken\": \"$b\"" >> $TEMP_ENROLLMENT_TOKEN_FILE
+    # only encryption token present
+    elif [[ "$a" == "0" && "$b" != "0" ]]; then
+        echo "\"enrollencryptiontoken\": \"$b\"" >> $TEMP_ENROLLMENT_TOKEN_FILE
+    #only authtoken present
+    elif [[ "$b" == "0" && "$a" != "0" ]]; then
+          echo "\"enrollauthtoken\": \"$a\"" >> $TEMP_ENROLLMENT_TOKEN_FILE
+    else
+         echo "Unsupported use case"
+    fi
+    # End the JSON structure
+    echo "}" >> $TEMP_ENROLLMENT_TOKEN_FILE
+    chmod 700 "$TEMP_ENROLLMENT_TOKEN_FILE"
+    echo "enroll.conf created with provided tokens."
+}
+
+# Main script execution
+
+#update these tokens to valid tokens
+enrollencryptiontoken=0
+enrollauthtoken=
+TEMP_BRANDING_DIR="/tmp/nsbranding"
+TEMP_ENROLLMENT_TOKEN_FILE="$TEMP_BRANDING_DIR/enroll.conf"
+
+# Check if atleast one of the token is present, then create enroll.conf
+if [[ "$enrollencryptiontoken" != "0" || "$enrollauthtoken" != "0" ]]; then
+    echo "Using secure enrollment"
+    Create_Json "$enrollauthtoken" "$enrollencryptiontoken"
+else
+    echo "Not using secure enrollment"
+    # Delete previous enroll.conf if it exists
+    if [[ -f "$TEMP_ENROLLMENT_TOKEN_FILE" ]]; then
+        rm "$TEMP_ENROLLMENT_TOKEN_FILE"
+    fi
+fi
+Ins_NSClient
+#end script
