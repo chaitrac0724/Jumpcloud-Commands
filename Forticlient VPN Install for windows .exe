@@ -1,0 +1,15 @@
+$InstallerPath = "C:\ProgramData\FortiClientInstaller.exe"
+
+if (Test-Path $InstallerPath) {
+    Start-Process `
+        -FilePath $InstallerPath `
+        -ArgumentList "/install /quiet /norestart" `
+        -Wait `
+        -NoNewWindow
+
+    Remove-Item $InstallerPath -Force -ErrorAction SilentlyContinue
+}
+else {
+    Write-Error "Installer file not found: $InstallerPath"
+    exit 1
+}
