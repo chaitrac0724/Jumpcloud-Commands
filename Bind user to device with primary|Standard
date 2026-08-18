@@ -1,0 +1,136 @@
+################################################################################
+# Set Local User (if provided), Bind, and Set Primary User script with logging
+################################################################################
+$sudoBind    = $True
+$primaryBind = $True   # set the bound user as the system's Primary User
+$list = Get-Content discovery.csv | ConvertFrom-Csv
+
+################################################################################
+$attributes = [JumpCloud.SDK.V2.Models.GraphOperationSystemAttributes]@{
+    'sudo' = @{
+        'enabled' = $sudoBind
+        'withoutPassword' = $false
+    }
+}
+
+# Create empty log list
+$logResults = @()
+
+foreach ($item in $list) {
+    if ($item.userid -and $item.systemID) {
+
+        $localStatus   = "Skipped"
+        $localError    = ""
+        $bindStatus    = "Skipped"
+        $bindError     = ""
+        $primaryStatus = "Skipped"
+        $primaryError  = ""
+
+        $canBind = $true   # flag to decide if we bind or not
+
+        # --- Update Local Account (only if provided) ---
+        if ($item.LocalAccount) {
+            Write-Host "Adding LocalAccount Username: $($item.localAccount) on userID: $($item.UserId)" -ForegroundColor Cyan
+
+            $headers = @{
+                Accept        = "application/json"
+                'x-api-key'   = $ENV:JCApiKey
+                "Content-Type"= "application/json"
+            }
+
+            $body = @{
+                systemUsername = "$($item.localAccount)"
+            } | ConvertTo-Json -Compress
+
+            try {
+                $content = Invoke-RestMethod -Method PUT `
+                    -Uri "https://console.jumpcloud.com/api/systemusers/$($item.userID)" `
+                    -Headers $headers `
+                    -Body $body
+
+                Write-Host "✅ Local account updated for $($item.LocalAccount)" -ForegroundColor Green
+                $localStatus = "Success"
+            }
+            catch {
+                $errMsg = $_.ErrorDetails.Message
+                Write-Warning "❌ Failed to set local account for $($item.UserId): $errMsg"
+                $localStatus = "Failed"
+                $localError  = $errMsg
+                $canBind = $false   # stop binding if local update failed
+            }
+        }
+        else {
+            Write-Host "⚠ No LocalAccount provided in CSV for UserID: $($item.UserId). Skipping local account update." -ForegroundColor DarkYellow
+        }
+
+        # --- Bind user to system (only if allowed) ---
+        if ($canBind) {
+            try {
+                Write-Host "Binding UserID: $($item.UserId) to SystemID: $($item.SystemId)" -ForegroundColor Yellow
+                Set-JcSdkUserAssociation -id $item.SystemId -userid $item.UserId -op 'add' -type 'system' -Attributes $attributes.AdditionalProperties
+                Write-Host "✅ Bound UserID: $($item.UserId) to SystemID: $($item.SystemId)" -ForegroundColor Green
+                $bindStatus = "Success"
+
+                # --- Set Primary User (only if binding succeeded and enabled) ---
+                if ($primaryBind) {
+                    try {
+                        # Skip if the system already has a primary user assigned
+                        $existingSystemInfo = Get-JCSystem -SystemID $item.SystemId
+                        if ($null -ne $existingSystemInfo.primarySystemUser.id) {
+                            Write-Host "⏩ SystemID: $($item.SystemId) already has a Primary User assigned. Skipping." -ForegroundColor Magenta
+                            $primaryStatus = "Already Set"
+                        }
+                        else {
+                            Set-JCSystem -SystemID $item.SystemId -primarySystemUser $item.UserId
+                            Write-Host "✅ Set UserID: $($item.UserId) as Primary User on SystemID: $($item.SystemId)" -ForegroundColor Green
+                            $primaryStatus = "Success"
+                        }
+                    }
+                    catch {
+                        $primaryError = $_.Exception.Message
+                        Write-Warning "❌ Failed to set primary user for SystemID: $($item.SystemId): $primaryError"
+                        $primaryStatus = "Failed"
+                    }
+                }
+            }
+            catch {
+                $errMsg = $_.Exception.Message
+                if ($errMsg -match "Already Exists") {
+                    Write-Warning "⚠ Skipping binding for UserID: $($item.UserId) — already bound."
+                    $bindStatus = "Already Exists"
+                } else {
+                    Write-Warning "❌ Binding failed for UserID: $($item.UserId): $errMsg"
+                    $bindStatus = "Failed"
+                    $bindError  = $errMsg
+                }
+            }
+        }
+        else {
+            Write-Host "⏩ Skipping binding for UserID: $($item.UserId) because local account update failed." -ForegroundColor Magenta
+        }
+
+        # Save results for final display
+        $logResults += [PSCustomObject]@{
+            UserId        = $item.UserId
+            SystemId      = $item.SystemId
+            LocalAccount  = $item.LocalAccount
+            LocalStatus   = $localStatus
+            LocalError    = $localError
+            BindStatus    = $bindStatus
+            BindError     = $bindError
+            PrimaryStatus = $primaryStatus
+            PrimaryError  = $primaryError
+        }
+    }
+}
+
+# Create timestamp for filename
+$timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+$csvPath = "BindResultsLog_$timestamp.csv"
+
+# Export results to CSV
+$logResults | Export-Csv -Path $csvPath -NoTypeInformation -Encoding UTF8
+
+Write-Host "`n========== FINAL RESULTS ==========`n" -ForegroundColor Cyan
+$logResults | Format-Table -AutoSize -Wrap
+Write-Host "`n✅ Results exported to: $csvPath`n" -ForegroundColor Green
